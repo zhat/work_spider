@@ -16,14 +16,12 @@ DATABASE = {
             'port':3306,
             'charset':'utf8'
 }
-
-USER_DATA_DIR= r'C:\Users\yaoxuzhao\AppData\Local\Google\Chrome\User Data'
-
+#USER_DATA_DIR = r'C:\Users\yaoxuzhao\AppData\Local\Google\Chrome\User Data'
+USER_DATA_DIR = r'C:\Users\yaoxuzhao\AppData\Local\Google\Chrome\User Data'
 
 """
     模拟登录下载订单管理页面数据
 """
-
 # for example
 # /merchant-picker/change-merchant?url=%2F&marketplaceId=A1F83G8C2ARO7P&merchantId=AV7KSH7XB8RNM
 # '/merchant-picker/change-merchant?url=%2F&marketplaceId=' + marketplaceid_dict[zone] + '&merchantId=' +  merchantId_dict[zone]
@@ -67,13 +65,10 @@ class AmazonOrderManagerCrawlFromOrderId():
     def login(self,driver):
         try:
             if driver.find_elements_by_xpath("//*[@id='merchant-picker-auth-status']"):
-                try:
-                    driver.find_elements_by_xpath(
+                driver.find_elements_by_xpath(
                         "//*[@id='merchant-picker-auth-status']//input[@name='not_authorized_sso_action' and @value='DIFFERENT_USER']")[
                         0].click()
-                    driver.find_elements_by_xpath("//*[@id='merchant-link-btn-continue']/span/input")[0].click()
-                except Exception as e:
-                    pass
+                driver.find_elements_by_xpath("//*[@id='merchant-link-btn-continue']/span/input")[0].click()
             driver.implicitly_wait(10)
             driver.find_element_by_id("ap_email").clear()
             driver.implicitly_wait(10)
@@ -99,7 +94,7 @@ class AmazonOrderManagerCrawlFromOrderId():
 
     def get_order_id_list(self):
         cur = self.dbconn.cursor()
-        sqlcmd = r'SELECT order_id FROM order_orderdata WHERE zone="%s" and `profile` is null  and `status`!="Canceled" and order_time<"%s" limit %d,%d;'%(self.zone,self.last_day_str,self.not_find_profile_num, self.crawl_number)
+        sqlcmd = r'SELECT order_id FROM order_orderdata WHERE zone="%s" and `profile` is null  and `status`!="Shipped" limit %d,%d;'%(self.zone,self.not_find_profile_num, self.crawl_number)
         cur.execute(sqlcmd)
         order_id_list = cur.fetchall()
         cur.close()
@@ -111,19 +106,12 @@ class AmazonOrderManagerCrawlFromOrderId():
         driver = self.open_browser()
         sqlcmds = []
         try:
-            # open driver and get url
-            #driver.set_page_load_timeout(200)
-
             driver.get(self.url)
-            driver.implicitly_wait(30)
-
+            WebDriverWait(driver, 120).until(
+                lambda driver: driver.execute_script("return document.readyState") == 'complete')
             if not driver.find_elements_by_xpath("//*[@id='gw-lefty']"):
                 self.login(driver)
             driver.maximize_window()
-
-            #driver.refresh()
-            #driver.implicitly_wait(10)
-
             # sub_zone_url = '/merchant-picker/change-merchant?url=%2F&marketplaceId=' + marketplaceid_dict[self.zone.lower()] + '&merchantId=' +  merchantId_dict[self.zone.lower()]
             order_number=1
             for order_id in order_id_list:
@@ -159,6 +147,8 @@ class AmazonOrderManagerCrawlFromOrderId():
         driver.get(order_url)
         driver.implicitly_wait(3)
         try:
+            if driver.find_elements_by_id('myo-message-board-alert-error-label'):
+                return ''
             if not driver.find_elements_by_id('myo-set-merchant-order-id-labelText'):
                 self.login(driver)
                 driver.get(order_url)
@@ -182,14 +172,13 @@ def get_profile(zone,days):
     last_day_str = last_day.strftime('%Y-%m-%d')
     amzCrawl = AmazonOrderManagerCrawlFromOrderId(zone, last_day_str, 200)
     while True:
-        try:
-            order_id_list=amzCrawl.get_order_id_list()
-            if order_id_list:
-                amzCrawl.getOrderInfo(order_id_list)
-            else:
-                break
-        except Exception as e:
-            print(e)
+        order_id_list=amzCrawl.get_order_id_list()
+        if order_id_list:
+            amzCrawl.getOrderInfo(order_id_list)
+        else:
+            break
 if __name__=='__main__':
     print(datetime.now())
-    get_profile('DE',8)
+    get_profile('DE', 0)
+    get_profile('CA', 0)
+    get_profile('US', 0)

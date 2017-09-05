@@ -3,25 +3,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.select import Select
 import time
-import easygui as g
-import pandas as pd
-import pymysql
-import getpass
 
-DATABASE = {
-            'host':"192.168.2.97",
-            'database':"bi_system",
-            'user':"lepython",
-            'password':"qaz123456",
-            'port':3306,
-            'charset':'utf8'
-}
-
-
-#USER_DATA_DIR= r'C:\Users\yaoxuzhao\AppData\Local\Google\Chrome\User Data'
-USER_DATA_DIR = r'C:\Users\%s\AppData\Local\Google\Chrome\User Data'%(getpass.getuser())
-
-class AmazonBase():
+class LoginBase():
     """
     amazon 商家后台基类 包括获取登录信息和网址
     打开chrome浏览器
@@ -30,28 +13,14 @@ class AmazonBase():
     关闭浏览器
     """
 
-    def __init__(self,zone,database,user_data_dir):
-        self.zone = zone
+    def __init__(self,url,username,password,user_data_dir=""):
+        self.url = url
+        self.username = username
+        self.password = password
         self.user_data_dir = user_data_dir
-        if isinstance(database,dict):
-            self.conn = pymysql.connect(**database)
-        else:
-            raise TypeError
-    # 获取登录信息 url username password
-    def get_login_info(self):
 
-        sqlcmd = "select username as un, AES_DECRYPT(password_encrypt,'andy') as pw, login_url as url" \
-                 " from core_amazon_account a where department = '技术部' and platform = '" + self.zone + "'"
-        a = pd.read_sql(sqlcmd, self.conn)
-        if (len(a) > 0):
-            username = a["un"][0]
-            password = str(a["pw"][0], encoding="utf-8")
-            url = a["url"][0]
-            return (url, username, password)
-        else:
-            return ('','','')
-
-    def login(self,driver, username, password):
+    def login(self,driver):
+        driver.get(self.url)
         WebDriverWait(driver, 120).until(
             lambda driver: driver.execute_script("return document.readyState") == 'complete')
         if driver.find_elements_by_xpath("//*[@id='gw-lefty']"):
@@ -65,9 +34,9 @@ class AmazonBase():
             driver.implicitly_wait(10)
             driver.find_element_by_id("ap_email").clear()
             driver.implicitly_wait(10)
-            driver.find_element_by_id("ap_email").send_keys(username)
+            driver.find_element_by_id("ap_email").send_keys(self.username)
             driver.implicitly_wait(10)
-            driver.find_element_by_id("ap_password").send_keys(password)
+            driver.find_element_by_id("ap_password").send_keys(self.password)
             driver.implicitly_wait(10)
             driver.find_element_by_id("signInSubmit").click()
             driver.implicitly_wait(10)
@@ -105,17 +74,10 @@ class AmazonBase():
     def close_brower(self):
         driver.close()
 
-    def close_sql(self):
-        self.conn.close()
-
 if __name__=='__main__':
-    reply = g.choicebox(msg="请选择你要登录的站点，默认为选择第一个站点！！！", title="选择登录站点", choices=['DE','US','JP','CA'])
-    amazon=AmazonBase(reply,DATABASE,USER_DATA_DIR)
-    url,username,password = amazon.get_login_info()
+    amazon=LoginBase('DE','','','')
     driver = amazon.open_chrome()
-    driver.get(url)
-    amazon.login(driver,username,password)
-    #amazon.switch_language(driver,'English')
-    time.sleep(300)
-    #amazon.close_brower(driver)
-    #amazon.close_sql()
+    amazon.login(driver)
+    amazon.switch_language(driver,'English')
+    time.sleep(60)
+    amazon.close_brower(driver)
