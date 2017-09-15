@@ -94,7 +94,7 @@ class AmazonOrderManagerCrawlFromOrderId():
 
     def get_order_id_list(self):
         cur = self.dbconn.cursor()
-        sqlcmd = r'SELECT order_id FROM order_orderdata WHERE zone="%s" and `profile` is null  and `status`!="Shipped" limit %d,%d;'%(self.zone,self.not_find_profile_num, self.crawl_number)
+        sqlcmd = r'SELECT order_id FROM order_orderdata WHERE zone="%s" and `profile` is null  and `status`="Shipped" limit %d,%d;'%(self.zone,self.not_find_profile_num, self.crawl_number)
         cur.execute(sqlcmd)
         order_id_list = cur.fetchall()
         cur.close()
@@ -182,3 +182,4 @@ if __name__=='__main__':
     get_profile('DE', 0)
     get_profile('CA', 0)
     get_profile('US', 0)
+    get_profile("JP", 0)
