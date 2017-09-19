@@ -17,8 +17,8 @@ DATABASE = {
             'charset':'utf8'
 }
 
-USER_DATA_DIR= r'C:\Users\yaoxuzhao\AppData\Local\Google\Chrome\User Data'
-
+#USER_DATA_DIR= r'C:\Users\yaoxuzhao\AppData\Local\Google\Chrome\User Data'
+USER_DATA_DIR=r'/home/lepython/.config/google-chrome'
 
 """
     模拟登录下载订单管理页面数据
@@ -31,9 +31,10 @@ USER_DATA_DIR= r'C:\Users\yaoxuzhao\AppData\Local\Google\Chrome\User Data'
 # url = 'https://sellercentral.amazon.es/gp/homepage.html?'
 
 class AmazonOrderManagerCrawlFromOrderId():
-    def __init__(self, zone,last_day_str, crawl_number=100):
+    def __init__(self, zone,last_day_str,status='Shipped',crawl_number=100):
 
         self.zone = zone
+        self.status = status
         self.start_time = datetime.now()
         self.crawl_number = crawl_number
         self.not_find_profile_num = 0
@@ -99,7 +100,7 @@ class AmazonOrderManagerCrawlFromOrderId():
 
     def get_order_id_list(self):
         cur = self.dbconn.cursor()
-        sqlcmd = r'SELECT order_id FROM order_orderdata WHERE zone="%s" and `profile` is null  and `status`!="Canceled" and order_time<"%s" limit %d,%d;'%(self.zone,self.last_day_str,self.not_find_profile_num, self.crawl_number)
+        sqlcmd = r'SELECT order_id FROM order_orderdata WHERE zone="%s" and `profile` is null  and `status`="%s" limit %d,%d;'%(self.zone,self.status,self.not_find_profile_num,self.crawl_number)
         cur.execute(sqlcmd)
         order_id_list = cur.fetchall()
         cur.close()
@@ -176,11 +177,11 @@ class AmazonOrderManagerCrawlFromOrderId():
         except Exception as e:
             print(e)
 
-def get_profile(zone,days):
+def get_profile(zone,days,status='Shipped'):
     now_time = datetime.now()
     last_day = now_time - timedelta(days=days)
     last_day_str = last_day.strftime('%Y-%m-%d')
-    amzCrawl = AmazonOrderManagerCrawlFromOrderId(zone, last_day_str, 200)
+    amzCrawl = AmazonOrderManagerCrawlFromOrderId(zone, last_day_str,status,200)
     while True:
         try:
             order_id_list=amzCrawl.get_order_id_list()
@@ -192,4 +193,11 @@ def get_profile(zone,days):
             print(e)
 if __name__=='__main__':
     print(datetime.now())
-    get_profile('DE',8)
+    get_profile('DE',0)
+    get_profile('US',0)
+    get_profile('CA',0)
+    get_profile('JP',0)
+    get_profile('DE',0,'Pending')
+    get_profile('US',0,'Pending')
+    get_profile('CA',0,'Pending')
+    get_profile('JP',0,'Pending')
