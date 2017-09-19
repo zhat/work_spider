@@ -7,6 +7,8 @@ import time
 import json
 import pymysql
 from datetime import datetime,timedelta
+import pytesseract
+from PIL import Image
 #from shibie import GetImageDate
 
 USER_DATA_DIR = r"C:\Users\yaoxuzhao\AppData\Local\Google\Chrome\User Data"
@@ -19,6 +21,12 @@ DATABASE = {
             'port':3306,
             'charset':'utf8'
 }
+
+
+def img_to_str(image_path):
+    image = Image.open(image_path)
+    text = pytesseract.image_to_string(image)
+    return text.replace(' ','')
 
 class GetStatisticsDataFromOMS():
     """
@@ -125,6 +133,7 @@ class GetStatisticsDataFromOMS():
         cur = self.dbconn.cursor()
         try:
             for sqlcmd in sql_insert:
+                print(sqlcmd)
                 cur.execute(sqlcmd)
             print(datetime.now())
             self.dbconn.commit()
@@ -145,6 +154,28 @@ class GetStatisticsDataFromOMS():
             print(e)
         finally:
             cur.close()
+    def login(self):
+        try:
+            driver.maximize_window()
+        except Exception as err:
+            print(err)
+            pass
+        while True:
+            image_path = r'E:\123\{}.jpg'.format(time.time())
+            image_path_png = r'E:\123\{}.png'.format(time.time())
+            driver.get_screenshot_as_file(image_path)  # 比较好理解
+            im = Image.open(image_path)
+            box = (1022, 360, 1097, 380)  # 设置要裁剪的区域
+            region = im.crop(box)
+            region.save(image_path_png)
+            driver.find_element_by_id("valCode").clear()
+            driver.find_element_by_id("valCode").send_keys(img_to_str(image_path_png))
+            time.sleep(3)
+            driver.find_element_by_xpath("//input[@type='submit']").click()
+            time.sleep(5)
+            if driver.find_elements_by_class_name("header_img"):
+                break
+
 
 if __name__=="__main__":
     chrome_options = webdriver.ChromeOptions()
@@ -157,17 +188,16 @@ if __name__=="__main__":
     # 读取本地信息
     chrome_options.add_argument("--user-data-dir=" + USER_DATA_DIR)
     driver = webdriver.Chrome(chrome_options=chrome_options)
-
-    # driver.get(BASE_URL)
-    # time.sleep(5)
     driver.get(BASE_URL)
-    time.sleep(10)
+    time.sleep(6)
     now = datetime.now()
     days = 2
-    while days<30:
+    while days<3:
         date = now-timedelta(days=days)
         date = date.strftime("%Y-%m-%d")
         gs = GetStatisticsDataFromOMS(date)
+        gs.login()
+        time.sleep(5)
         result=gs.get_data(driver)
         gs.clean_data()
         days+=1
